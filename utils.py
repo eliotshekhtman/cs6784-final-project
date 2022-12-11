@@ -47,12 +47,13 @@ class GradientBandit(nn.Module):
         x_prime : tensor(n, context_size)
             Adversarial contexts.
         '''
-        x_aug = torch.cat([x, torch.ones(x.shape[0]).reshape(-1, 1)], 1)
-        hyperplanes = self.get_hyperplanes()  # (n_arms, context_size + 1)
+        x_aug = torch.cat(
+            [x, torch.ones(x.shape[0]).reshape(-1, 1)], 1).float()
+        hyperplanes = self.get_hyperplanes().float()  # (n_arms, context_size + 1)
         # Noise the perceptions (n_arms, context_size + 1)
         if not variances is None:
-            hyperplanes += np.random.normal(
-                scale=np.sqrt(variances)).reshape(-1, 1)
+            hyperplanes += torch.tensor(np.random.normal(
+                scale=np.sqrt(variances.numpy())).reshape(-1, 1))
         # Distances to each hyperplane (n, n_arms)
         distances = torch.abs(x_aug @ torch.t(hyperplanes))
         # Signs of distances to each hyperplane (n, n_arms)
