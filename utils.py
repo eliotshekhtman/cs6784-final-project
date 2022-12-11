@@ -4,6 +4,9 @@ from torch import nn
 
 
 class GradientBandit(nn.Module):
+    ''' Gradient-optimizable strategy-aware contextual bandits
+    '''
+
     def __init__(self, n_arms, context_size):
         super(GradientBandit, self).__init__()
         self.softmax = nn.Softmax(dim=-1)
@@ -13,17 +16,33 @@ class GradientBandit(nn.Module):
         self.context_size = context_size
 
     def get_hyperplanes(self):
+        '''
+        Returns
+        -------
+        weights : tensor(n_arms, context_size + 1)
+        '''
         weights = torch.cat(
             [self.classifier.weight, self.classifier.bias.reshape(-1, 1)], 1)
         weights = nn.functional.normalize(weights, p=2, dim=1)
         return weights
 
     def argmax(self, x, agent_rewards):
-        '''
+        ''' argmax_{x' \in X} [(r^A(f_\theta (x')) - c(x, x'))]
+        Returns the adversarial contexts x'.  
+        This assumes that c is the Euclidean distance function.
+        TODO: implement noisy perception of hyperplanes
+
         Params
         ------
         x : tensor(n, context_size)
+            Original contexts.
         agent_rewards : tensor(n_arms)
+            Rewards that agents get from each arm being pulled.
+
+        Returns
+        -------
+        x_prime : tensor(n, context_size)
+            Adversarial contexts.
         '''
         x_aug = torch.cat([x, torch.ones(x.shape[0]).reshape(-1, 1)], 1)
         hyperplanes = self.get_hyperplanes()  # (n_arms, context_size + 1)
