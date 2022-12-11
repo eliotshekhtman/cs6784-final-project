@@ -14,6 +14,7 @@ class GradientBandit(nn.Module):
             in_features=context_size, out_features=n_arms)
         self.n_arms = n_arms
         self.context_size = context_size
+        self.criterion = nn.MSELoss()
 
     def get_hyperplanes(self):
         '''
@@ -26,7 +27,7 @@ class GradientBandit(nn.Module):
         weights = nn.functional.normalize(weights, p=2, dim=1)
         return weights
 
-    def argmax(self, x, agent_rewards):
+    def argmax(self, x, agent_rewards, variances=None):
         ''' argmax_{x' \in X} [(r^A(f_\theta (x')) - c(x, x'))]
         Returns the adversarial contexts x'.  
         This assumes that c is the Euclidean distance function.
@@ -38,6 +39,8 @@ class GradientBandit(nn.Module):
             Original contexts.
         agent_rewards : tensor(n_arms)
             Rewards that agents get from each arm being pulled.
+        variances : tensor(context_size + 1)
+            Variances on noised perception of the classifiers.
 
         Returns
         -------
@@ -46,6 +49,10 @@ class GradientBandit(nn.Module):
         '''
         x_aug = torch.cat([x, torch.ones(x.shape[0]).reshape(-1, 1)], 1)
         hyperplanes = self.get_hyperplanes()  # (n_arms, context_size + 1)
+        # Noise the perceptions (n_arms, context_size + 1)
+        if not variances is None:
+            hyperplanes += np.random.normal(
+                scale=np.sqrt(variances)).reshape(-1, 1)
         # Distances to each hyperplane (n, n_arms)
         distances = torch.abs(x_aug @ hyperplanes.T)
         # Signs of distances to each hyperplane (n, n_arms)
@@ -73,7 +80,7 @@ class GradientBandit(nn.Module):
         x_prime = (x_aug / biases)[:, :-1]
         return x_prime
 
-    def forward(self, x, agent_rewards):
+    def forward(self, x, agent_rewards, variances=None, y=None):
         '''
         Params
         ------
@@ -84,5 +91,42 @@ class GradientBandit(nn.Module):
         -------
         y_hat : tensor(n, n_arms)
         '''
-        x_prime = self.argmax(x, agent_rewards)
-        return self.softmax(self.classifier(x_prime))
+        x_prime = self.argmax(x, agent_rewards, variances=variances)
+        y_hat = self.softmax(self.classifier(x_prime))
+        if y is None:
+            return y_hat
+        else:
+            return self.criterion(y, y_hat)
+
+
+class Agents(torch.utils.data.Dataset):
+    def __init__(self, n, n_arms, context_size,
+                 arms=None,
+                 max_reward=0.0, max_variance=0.0):
+        '''
+        Nonstrategic agents: max_reward = 0
+        Strategic agents: max_reward > 0, max_variance = 0
+        Imperfect strategic agents: max_reward > 0, max_variance > 0
+        '''
+        if arms is None:
+            raise NotImplementedError('Too much effort')
+        assert arms.shape == (n_arms, context_size + 1)
+        self.n = n
+        self.n_arms = n_arms
+        self.context_size = context_size
+        self.arms = arms
+        self.rewards = torch.tensor(np.random.rand(n_arms)) * max_reward
+        self.variances = torch.tensor(np.random.rand(n)) * max_variance
+        self.x = torch.tensor(np.random.rand(n, context_size))
+        x_aug = torch.cat([self.x, torch.ones(n).reshape(-1, 1)], 1).float()
+        self.y = torch.sign(x_aug @ arms.T)
+        self.indices = np.arange(n)
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, i):
+        return (
+            self.x[self.indices[i]],
+            self.y[self.indices[i]],
+            self.variances[self.indices[i]])
