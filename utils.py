@@ -47,9 +47,9 @@ class GradientBandit(nn.Module):
         x_aug = torch.cat([x, torch.ones(x.shape[0]).reshape(-1, 1)], 1)
         hyperplanes = self.get_hyperplanes()  # (n_arms, context_size + 1)
         # Distances to each hyperplane (n, n_arms)
-        distances = torch.abs(x_aug @ hyperplanes.T)
+        distances = torch.abs(x_aug @ torch.t(hyperplanes))
         # Signs of distances to each hyperplane (n, n_arms)
-        directions = torch.torch.sign(x_aug @ hyperplanes.T)
+        directions = torch.torch.sign(x_aug @ torch.t(hyperplanes))
         # Willingness to go in the direction of each hyperplane (n, n_arms)
         reward = agent_rewards - distances
         reward_max = torch.max(reward, dim=-1)
@@ -58,11 +58,11 @@ class GradientBandit(nn.Module):
         # Would the reward be positive? (n)
         positives = (reward_max.values.squeeze() > 0).float()
         # Which one would it rather go to (multiplicable)? (n, n_arms)
-        mul_ind = nn.functional.one_hot(indices, num_classes=self.n_arms)
+        mul_ind = nn.functional.one_hot(indices, num_classes=self.n_arms).float()
         # Distances/distances to hyperplanes it would rather go to (n, n_arms)
         distances = distances * mul_ind * directions
         # Distances willing to travel to the hyperplanes (n, n_arms)
-        distances = (distances.T * positives).T
+        distances = torch.t(torch.t(distances) * positives)
         # Direction of movement (n, context_size + 1)
         distances = distances @ hyperplanes
         # Moved augmented x values (n, context_size + 1)
