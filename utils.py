@@ -39,7 +39,7 @@ class GradientBandit(nn.Module):
         # Would the reward be positive? (n)
         positives = (reward_max.values.squeeze() > 0).float()
         # Which one would it rather go to (multiplicable)? (n, n_arms)
-        mul_ind = nn.functional.one_hot(indices, num_classes=n_arms)
+        mul_ind = nn.functional.one_hot(indices, num_classes=self.n_arms)
         # Distances/distances to hyperplanes it would rather go to (n, n_arms)
         distances = distances * mul_ind * directions
         # Distances willing to travel to the hyperplanes (n, n_arms)
