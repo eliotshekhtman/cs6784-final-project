@@ -23,7 +23,7 @@ class GradientBandit(nn.Module):
         weights : tensor(n_arms, context_size + 1)
         '''
         weights = torch.cat(
-            [self.classifier.weight, self.classifier.bias.reshape(-1, 1)], 1)
+            [self.classifier.weight, self.classifier.bias.reshape(-1, 1)], 1).detach()
         weights = nn.functional.normalize(weights, p=2, dim=1)
         return weights
 
@@ -54,9 +54,11 @@ class GradientBandit(nn.Module):
             hyperplanes += np.random.normal(
                 scale=np.sqrt(variances)).reshape(-1, 1)
         # Distances to each hyperplane (n, n_arms)
+        #distances = torch.abs(x_aug @ torch.t(hyperplanes))
         distances = torch.abs(x_aug @ torch.t(hyperplanes))
         # Signs of distances to each hyperplane (n, n_arms)
         directions = torch.sign(x_aug @ torch.t(hyperplanes))
+        #directions = torch.tanh(1000*x_aug @ torch.t(hyperplanes))
         # Willingness to go in the direction of each hyperplane (n, n_arms)
         reward = directions * agent_rewards - distances
         reward_max = torch.max(reward, dim=-1)
