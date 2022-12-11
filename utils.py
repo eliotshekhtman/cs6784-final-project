@@ -47,7 +47,7 @@ class GradientBandit(nn.Module):
         # Direction of movement (n, context_size + 1)
         distances = distances @ hyperplanes
         # Moved augmented x values (n, context_size + 1)
-        x_aug += distances
+        x_aug -= distances
         # The last column (n, d)
         biases = x_aug[:, -1].reshape(-1, 1).tile(1, x_aug.shape[1])
         # Removing last column
