@@ -9,7 +9,7 @@ class GradientBandit(nn.Module):
 
     def __init__(self, n_arms, context_size):
         super(GradientBandit, self).__init__()
-        self.softmax = nn.Softmax(dim=-1)
+        self.sigmoid = nn.Sigmoid()
         self.classifier = nn.Linear(
             in_features=context_size, out_features=n_arms)
         self.n_arms = n_arms
@@ -56,16 +56,17 @@ class GradientBandit(nn.Module):
         # Distances to each hyperplane (n, n_arms)
         distances = torch.abs(x_aug @ torch.t(hyperplanes))
         # Signs of distances to each hyperplane (n, n_arms)
-        directions = torch.torch.sign(x_aug @ torch.t(hyperplanes))
+        directions = torch.sign(x_aug @ torch.t(hyperplanes))
         # Willingness to go in the direction of each hyperplane (n, n_arms)
-        reward = agent_rewards - distances
+        reward = directions * agent_rewards - distances
         reward_max = torch.max(reward, dim=-1)
         # Which hyperplane would it rather go to? (n)
         indices = reward_max.indices.squeeze()
         # Would the reward be positive? (n)
         positives = (reward_max.values.squeeze() > 0).float()
         # Which one would it rather go to (multiplicable)? (n, n_arms)
-        mul_ind = nn.functional.one_hot(indices, num_classes=self.n_arms).float()
+        mul_ind = nn.functional.one_hot(
+            indices, num_classes=self.n_arms).float()
         # Distances/distances to hyperplanes it would rather go to (n, n_arms)
         distances = distances * mul_ind * directions
         # Distances willing to travel to the hyperplanes (n, n_arms)
@@ -92,7 +93,7 @@ class GradientBandit(nn.Module):
         y_hat : tensor(n, n_arms)
         '''
         x_prime = self.argmax(x, agent_rewards, variances=variances)
-        y_hat = self.softmax(self.classifier(x_prime))
+        y_hat = self.sigmoid(self.classifier(x_prime))
         if y is None:
             return y_hat
         else:
