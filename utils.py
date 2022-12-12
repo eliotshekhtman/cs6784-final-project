@@ -55,11 +55,9 @@ class GradientBandit(nn.Module):
             hyperplanes += torch.tensor(np.random.normal(
                 scale=np.sqrt(variances.numpy())).reshape(-1, 1))
         # Distances to each hyperplane (n, n_arms)
-        #distances = torch.abs(x_aug @ torch.t(hyperplanes))
         distances = torch.abs(x_aug @ torch.t(hyperplanes))
         # Signs of distances to each hyperplane (n, n_arms)
         directions = torch.sign(x_aug @ torch.t(hyperplanes))
-        #directions = torch.tanh(1000*x_aug @ torch.t(hyperplanes))
         # Willingness to go in the direction of each hyperplane (n, n_arms)
         reward = directions * agent_rewards - distances
         reward_max = torch.max(reward, dim=-1)
