@@ -23,7 +23,7 @@ class GradientBandit(nn.Module):
         weights : tensor(n_arms, context_size + 1)
         '''
         weights = torch.cat(
-            [self.classifier.weight, self.classifier.bias.reshape(-1, 1)], 1)
+            [self.classifier.weight, self.classifier.bias.reshape(-1, 1)], 1).detach()
         weights = nn.functional.normalize(weights, p=2, dim=1)
         return weights
 
