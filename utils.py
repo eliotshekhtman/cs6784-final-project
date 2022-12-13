@@ -124,7 +124,7 @@ class GradientBandit(nn.Module):
         -------
         y_hat : tensor(n, n_arms)
         '''
-        x_prime = self.argmax(x, agent_rewards, variances=variances)
+        x_prime = self.slow_argmax(x, agent_rewards, variances=variances)
         y_hat = self.sigmoid(self.classifier(x_prime))
         if y is None:
             return y_hat
